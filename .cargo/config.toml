@@ -12,11 +12,11 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 # - Ubuntu, 'sudo apt install lld clang'
 # - Arch - 'sudo pacman -S lld clang'
 
-# [target.x86_64-unknown-linux-gnu]
-# rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
+ [target.x86_64-unknown-linux-gnu]
+ rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
 
-[target.'cfg(target_os = "linux")']
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+#[target.'cfg(target_os = "linux")']
+#rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 #On MacOs brew install llvm and follow steps in brew info llvm
 [target.x86_64-apple-darwin]
