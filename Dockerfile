@@ -1,21 +1,31 @@
-FROM rust:1.88 AS cargo-build
-
+# Prepara se uma imagem com todas as dependencias de Sistema Operativo
+FROM lukemathwalker/cargo-chef:latest-rust-1.88 AS chef
 WORKDIR /app
+RUN apt update && apt install -y musl-tools lld clang pkg-config libssl-dev \
+    && rustup target add x86_64-unknown-linux-musl
 
-RUN apt update && apt install lld clang -y
-
+##Usa se a imagem com dependencias de OS para preparar as dependencias do rust
+FROM chef AS planner
 COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
+
+#
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
 ENV SQLX_OFFLINE=true
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin zero2prod
 
-RUN cargo build --release
+# ---- Runtime stage ----
+FROM alpine:latest AS runtime
+WORKDIR /app
+# Install CA certificates so HTTPS works
+RUN apk add --no-cache ca-certificates
 
-#ENTRYPOINT ["./target/release/zero2prod"]
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/zero2prod zero2prod
+COPY configuration configuration
+ENV APP_ENVIRONMENT=production
 
-RUN cargo install --path .
-
-FROM ubuntu:latest
-
-COPY --from=cargo-build /usr/local/cargo/bin/zero2prod /usr/local/bin/zero2prod
-
-CMD ["zero2prod"]
+ENTRYPOINT ["./zero2prod"]
