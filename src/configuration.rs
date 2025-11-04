@@ -1,4 +1,5 @@
 use secrecy::{ExposeSecret, Secret};
+use serde_aux::field_attributes::deserialize_number_from_string;
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
@@ -10,6 +11,7 @@ pub struct Settings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: Secret<String>,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub database_name: String,
@@ -17,6 +19,7 @@ pub struct DatabaseSettings {
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
@@ -32,19 +35,27 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
 
     let environment_filename = format!("{}.yaml", environment.as_str());
 
-    let settings = config::Config::builder().add_source(config::File::from(configuration_directory.join("base.yaml"))).add_source(config::File::from(configuration_directory.join(environment_filename))).build()?;
+    let settings = config::Config::builder()
+        .add_source(config::File::from(
+            configuration_directory.join("base.yaml"),
+        ))
+        .add_source(config::File::from(
+            configuration_directory.join(environment_filename),
+        ))
+        .build()?;
 
     settings.try_deserialize::<Settings>()
 }
 
 pub enum Environment {
-    Local, Production
+    Local,
+    Production,
 }
 
-impl Environment{
+impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Environment::Local=>"local",
+            Environment::Local => "local",
             Environment::Production => "production",
         }
     }
@@ -57,8 +68,10 @@ impl TryFrom<String> for Environment {
         match s.to_lowercase().as_str() {
             "local" => Ok(Self::Local),
             "production" => Ok(Self::Production),
-            other => Err(format!("{other} is not a supported environment. \
-            Use either 'local' or 'production'. "))
+            other => Err(format!(
+                "{other} is not a supported environment. \
+            Use either 'local' or 'production'. "
+            )),
         }
     }
 }
