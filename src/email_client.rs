@@ -27,13 +27,11 @@ impl EmailClient {
         base_url: String,
         sender: SubscriberEmail,
         authorization_token: Secret<String>,
+        timeout: Duration,
     ) -> Result<Self, ParseError> {
         let base_url = Url::parse(&base_url)?;
 
-        let http_client = Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()
-            .unwrap();
+        let http_client = Client::builder().timeout(timeout).build().unwrap();
 
         Ok(Self {
             http_client,
@@ -75,6 +73,8 @@ impl EmailClient {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::domain::SubscriberEmail;
     use crate::email_client::EmailClient;
     use claims::{assert_err, assert_ok};
@@ -100,8 +100,13 @@ mod tests {
     }
 
     fn email_client(base_url: String) -> EmailClient {
-        EmailClient::new(base_url, email(), Secret::new(Faker.fake()))
-            .expect("Failed to create EmailClient from mock server URI")
+        EmailClient::new(
+            base_url,
+            email(),
+            Secret::new(Faker.fake()),
+            Duration::from_millis(200),
+        )
+        .expect("Failed to create EmailClient from mock server URI")
     }
 
     impl wiremock::Match for SendEmailBodyMatcher {
@@ -143,7 +148,7 @@ mod tests {
     #[tokio::test]
     async fn send_email_succeeds_if_the_server_returns_200() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+
         let email_client = email_client(mock_server.uri());
 
         Mock::given(any())
@@ -162,7 +167,6 @@ mod tests {
     #[tokio::test]
     async fn send_email_fails_if_the_server_returns_500() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let email_client = email_client(mock_server.uri());
 
         Mock::given(any())
