@@ -1,10 +1,6 @@
-use std::net::TcpListener;
-
-use actix_learning::email_client::EmailClient;
-use actix_learning::startup::{build, get_connection_pool};
+use actix_learning::startup::{Application, get_connection_pool};
 use actix_learning::{
     configuration::{DatabaseSettings, get_configuration},
-    startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
 use once_cell::sync::Lazy;
@@ -41,14 +37,15 @@ pub async fn spawn_app() -> TestApp {
 
     configure_database(&configuration.database).await;
 
-    let server = build(configuration.clone())
+    let application = Application::build(configuration.clone())
         .await
-        .expect("Failed to build application.");
+        .expect("Failed to build application");
 
-    let _ = tokio::spawn(server);
+    let address = format!("http://127.0.0.1:{}", application.port());
+    let _ = tokio::spawn(application.run_until_stopped());
 
     TestApp {
-        address: todo!(),
+        address,
         db_pool: get_connection_pool(&configuration.database),
     }
 }
